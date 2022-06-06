@@ -1,0 +1,3 @@
+*.txt
+bio_embedding_extrinsic
+__pycache__
