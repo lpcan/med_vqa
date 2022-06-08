@@ -61,11 +61,12 @@ class VQAModel(nn.Module):
 
     def forward(self, v, q):
         img_feat = self.img_encoder(v)
-        q_feat = self.q_encoder(q)
-
-        fused_feat = torch.cat(img_feat, q_feat)
+        q_feat, hidden_state = self.q_encoder(q)
+        print(img_feat.shape, q_feat.shape)
+        fused_feat = torch.cat((img_feat, q_feat))
         
-        ans = self.decoder(fused_feat)
+        # this is not right
+        ans = self.decoder(fused_feat, hidden_state)
 
         return ans
 

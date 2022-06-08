@@ -1,3 +1,4 @@
 *.txt
 bio_embedding_extrinsic
 __pycache__
+data_analysis

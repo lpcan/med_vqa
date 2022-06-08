@@ -34,7 +34,8 @@ class VQADataset(data.Dataset):
         img = Image.open(self.data_dir + img_id.strip() + ".jpg")
         img = img.resize((256, 256)) # resize to 256 x 256?
         v = np.asarray(img)
-        # Need to resize the images to have the same size
+        if self.transform:
+            v = self.transform(v)
 
         # Get the question and convert to a tensor
         q_words = self.questions[idx]
