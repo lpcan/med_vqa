@@ -23,11 +23,12 @@ def train():
 
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
-    wordvec_dict = data_prep.create_dict(params.wv_path)
+    wordvec_dict = data_prep.create_dict(params.wv_path, params.data)
     wordvec_weights = torch.FloatTensor(wordvec_dict.vectors)
-    model = VQAModel(img_feat_size=1024, wordvec_weights=wordvec_weights, q_feat_size=1024)
+    num_answers = len(data.unique_answers)
+    model = VQAModel(img_feat_size=512, wordvec_weights=wordvec_weights, q_feat_size=512, out_size = num_answers)
     criterion = nn.CrossEntropyLoss()
-    optimiser = optim.Adam(model.parameters(), lr=0.01)
+    optimiser = optim.Adam(model.parameters(), lr=1e-5)
 
     # Start training
     for epoch in range(params.epochs):
@@ -35,28 +36,30 @@ def train():
         print('----------')
         total_loss = 0
         total_correct = 0
-
-        for batch in trainloader:
+        print(f"{len(trainloader)} batches")
+        for i, batch in enumerate(trainloader):
+            print(f"loading batch {i}")
             v, q, a = batch
             v = v.to(device)
             q = q.to(device)
             a = a.to(device)
-
+            print("getting prediction")
             # Get the predictions for this batch
             pred = model(v, q)
-
+            
+            # Get the output answer
+            answer = torch.argmax(pred, dim=1)
+            print(f"output answer = {answer}, true answer = {a}")
             # Calculate the loss
             loss = criterion(pred, a)
-
+            print("backpropagating")
             # Backpropagation
             optimiser.zero_grad()
             loss.backward() # compute gradients
             optimiser.step() # update weights
-
-            # Get the output answer
-            #_, answer = torch.max(pred, 1)
-
+            print("updating total loss")
             total_loss += loss.item()
+            print(f"{loss.item()}")
             # total_correct += # how to calculate "total correct?"
 
         model_accuracy = 0.0 # implement some accuracy metric here
