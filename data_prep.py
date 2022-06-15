@@ -1,6 +1,5 @@
 # Functions to prep input data
 
-from attr import dataclass
 import torch.utils.data as data
 from gensim.models import KeyedVectors, keyedvectors
 from gensim import utils
