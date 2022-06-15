@@ -4,4 +4,5 @@ __pycache__
 data_analysis
 Datasets
 *.pbs
+*.txt
 venv
