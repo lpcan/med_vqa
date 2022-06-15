@@ -18,8 +18,8 @@ def train():
         train_len = int((params.train_val_split) * data_len)
         test_len = data_len - train_len
         train_set, test_set = torch.utils.data.random_split(data, [train_len, test_len])
-        trainloader = torch.utils.data.DataLoader(train_set, batch_size=params.batch_size, shuffle=False)
-        testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=False)
+        trainloader = torch.utils.data.DataLoader(train_set, batch_size=params.batch_size, shuffle=True)
+        testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=True)
 
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
@@ -38,9 +38,9 @@ def train():
         total_loss = 0
         total_correct = 0
         total_samples = 0
-        print(f"{len(trainloader)} batches")
+        #print(f"{len(trainloader)} batches")
         for i, batch in enumerate(trainloader):
-            print(f"loading batch {i}")
+            #print(f"loading batch {i}")
             v, q, a = batch
             v = v.to(device)
             q = q.to(device)
@@ -61,7 +61,7 @@ def train():
             optimiser.step() # update weights
 
             total_loss += loss.item()
-            print(f"{loss.item()}")
+            #print(f"{loss.item()}")
             total_correct += answer.eq(a).sum().item()
             total_samples += a.size(0)
 
@@ -109,7 +109,7 @@ def test_network(model, testloader):
 
 
     model_accuracy = total_correct/total_samples
-    print(f"Accuracy on #num# of images: {model_accuracy:.2f}")  
+    print(f"Accuracy on {total_samples} images: {model_accuracy:.2f}")  
     f.close()
     model.train()
 
