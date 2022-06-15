@@ -16,7 +16,7 @@ class VQADataset(data.Dataset):
         self.images = []
         self.questions = []
         self.answers = []
-        f = open(glob.glob(data_dir+"All_QA_pairs*.txt")[0])
+        f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='cp1252')
         for line in f:
             img, q, a = line.split('|')
             self.images.append(img)
@@ -63,7 +63,7 @@ class VQADataset(data.Dataset):
         
 # Create the vocab dictionary
 def create_dict(path, data_dir):
-    if len(glob.glob(data_dir + "vocab")) > 0:
+    if len(glob.glob(data_dir + "word_vec")) > 0:
         # Use previously calculated word vectors for this dataset
         wv = KeyedVectors.load_word2vec_format(data_dir+"word_vec", binary=True)
     else:
@@ -72,7 +72,7 @@ def create_dict(path, data_dir):
         # Only want to keep vocab that will be used
         wv_new = {}
         # Create an entry for each word in our vocab
-        f = open(glob.glob(data_dir+"All_QA_pairs*.txt")[0])
+        f = open(glob.glob(data_dir+"All_QA_pairs*.txt")[0], encoding='cp1252')
         for line in f:
             _, q, a = line.split('|')
             text = q + a 
@@ -87,10 +87,7 @@ def create_dict(path, data_dir):
                         wv_new[word] = wv[word]
         m = keyedvectors.Word2VecKeyedVectors(vector_size=len(wv[0]))
         m.add_vectors(list(wv_new.keys()), np.array(list(wv_new.values())))
-        with utils.open(data_dir + "word_vec", 'wb') as fout:
-            fout.write(utils.to_utf8("%s %s\n" % (len(wv_new), len(wv[0]))))
-            for word, row in wv_new.items():
-                fout.write(utils.to_utf8(word) + b" " + row.tostring())
+        m.save_word2vec_format(data_dir+"word_vec", binary=True)
         wv = m
     return wv
 
@@ -135,4 +132,16 @@ class Vocab:
 
     def sentence_to_idx(self, sentence):
         return [self.word2idx(w) for w in prepare_text(sentence).split(' ')]
+
+    def idx2word(self, idx):
+        return list(self.vocab_dict)[idx]
+    
+    def idx_to_sentence(self, idxs):
+        sentence = ''
+        for idx in idxs:
+            if self.idx2word(idx) == '<pad>':
+                break
+            else:
+                sentence += self.idx2word(idx) + ' '
+        return sentence
 

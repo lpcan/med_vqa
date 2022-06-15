@@ -9,7 +9,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def train():
     if params.train_val_split == 1:
-        data = data_prep.VQADataset(data_dir=params.data)
+        data = data_prep.VQADataset(data_dir=params.data, transform=params.transform)
         trainloader = torch.utils.data.DataLoader(data, batch_size=params.batch_size, shuffle=True)
     else:
         print("Loading data...")
@@ -27,6 +27,7 @@ def train():
     wordvec_weights = torch.FloatTensor(wordvec_dict.vectors)
     num_answers = len(data.unique_answers)
     model = VQAModel(img_feat_size=512, wordvec_weights=wordvec_weights, q_feat_size=512, out_size = num_answers)
+    model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=1e-5)
 
@@ -36,6 +37,7 @@ def train():
         print('----------')
         total_loss = 0
         total_correct = 0
+        total_samples = 0
         print(f"{len(trainloader)} batches")
         for i, batch in enumerate(trainloader):
             print(f"loading batch {i}")
@@ -43,26 +45,27 @@ def train():
             v = v.to(device)
             q = q.to(device)
             a = a.to(device)
-            print("getting prediction")
+
             # Get the predictions for this batch
             pred = model(v, q)
             
             # Get the output answer
             answer = torch.argmax(pred, dim=1)
-            print(f"output answer = {answer}, true answer = {a}")
+
             # Calculate the loss
             loss = criterion(pred, a)
-            print("backpropagating")
+
             # Backpropagation
             optimiser.zero_grad()
             loss.backward() # compute gradients
             optimiser.step() # update weights
-            print("updating total loss")
+
             total_loss += loss.item()
             print(f"{loss.item()}")
-            # total_correct += # how to calculate "total correct?"
+            total_correct += answer.eq(a).sum().item()
+            total_samples += a.size(0)
 
-        model_accuracy = 0.0 # implement some accuracy metric here
+        model_accuracy = total_correct / total_samples # implement some accuracy metric here
 
         print(f"Total_correct: {total_correct}\nLoss: {total_loss:.2f}\nAcc: {model_accuracy:.2f}")
 
@@ -78,6 +81,7 @@ def train():
 def test_network(model, testloader):
     model.eval()
     total_correct = 0
+    total_samples = 0
 
     # Write the output somewhere?
     f = open('valid_log.txt', 'a+')
@@ -91,11 +95,20 @@ def test_network(model, testloader):
             a = a.to(device)
 
             pred = model(v, q)
-            _, output = torch.max(pred, 1)
-            f.write(q + '|' + output + '|' + a)
-            # something with total correct here
+            answer = torch.argmax(pred, dim=1)
 
-    model_accuracy = 0 # something
+            answers = list(testloader.dataset.dataset.unique_answers)
+            output = [answers[label] for label in answer]
+            a_word = [answers[label] for label in a]
+
+            for i in range(len(q)):
+                vocab = testloader.dataset.dataset.question_vocab
+                f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + a_word[i] + '\n')
+            total_samples += a.size(0)
+            total_correct += (answer == a).sum().item()
+
+
+    model_accuracy = total_correct/total_samples
     print(f"Accuracy on #num# of images: {model_accuracy:.2f}")  
     f.close()
     model.train()
