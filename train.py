@@ -4,16 +4,20 @@ from torch import nn, optim
 from model import VQAModel
 import params
 import data_prep
+import vocab_helper
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def train():
+    print("Loading data...")
+    vocab = vocab_helper.Vocab(params.data)
+    ans_translator = vocab_helper.Ans_Translator(params.data)
+
     if params.train_val_split == 1:
-        data = data_prep.VQADataset(data_dir=params.data, transform=params.transform)
+        data = data_prep.VQADataset(data_dir=params.data, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
         trainloader = torch.utils.data.DataLoader(data, batch_size=params.batch_size, shuffle=True)
     else:
-        print("Loading data...")
-        data = data_prep.VQADataset(data_dir=params.data, transform=params.transform)
+        data = data_prep.VQADataset(data_dir=params.data, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
         data_len = len(data)
         train_len = int((params.train_val_split) * data_len)
         test_len = data_len - train_len
@@ -23,10 +27,8 @@ def train():
 
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
-    wordvec_dict = data_prep.create_dict(params.wv_path, params.data)
-    wordvec_weights = torch.FloatTensor(wordvec_dict.vectors)
-    num_answers = len(data.unique_answers)
-    model = VQAModel(img_feat_size=512, wordvec_weights=wordvec_weights, q_feat_size=512, out_size = num_answers)
+    num_answers = len(ans_translator.answer_list)
+    model = VQAModel(img_feat_size=512, wordvec_weights=vocab.embeddings, q_feat_size=512, out_size = num_answers)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=1e-5)
@@ -71,14 +73,14 @@ def train():
 
         if epoch % 1 == 0: # validate after every epoch?
             if params.train_val_split < 1:
-                test_network(model,testloader)
+                test_network(model, testloader, vocab, ans_translator)
 
     if params.train_val_split < 1:
         test_network(model,testloader)
     #torch.save(net.state_dict(), 'savedModel.pth')
     #print("   Model saved to savedModel.pth")
 
-def test_network(model, testloader):
+def test_network(model, testloader, vocab, ans_translator):
     model.eval()
     total_correct = 0
     total_samples = 0
@@ -97,13 +99,12 @@ def test_network(model, testloader):
             pred = model(v, q)
             answer = torch.argmax(pred, dim=1)
 
-            answers = list(testloader.dataset.dataset.unique_answers)
-            output = [answers[label] for label in answer]
-            a_word = [answers[label] for label in a]
+            output = [ans_translator.label_to_word(label) for label in answer]
+            gt = [ans_translator.label_to_word(label) for label in a]
 
             for i in range(len(q)):
                 vocab = testloader.dataset.dataset.question_vocab
-                f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + a_word[i] + '\n')
+                f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + gt[i] + '\n')
             total_samples += a.size(0)
             total_correct += (answer == a).sum().item()
 
