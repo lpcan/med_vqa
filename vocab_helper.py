@@ -21,7 +21,7 @@ class Vocab:
         idx = 1
         for line in f:
             _, q, a = line.split(" | ")
-            text = data_prep.prepare_text(q + a)
+            text = data_prep.prepare_text(q + " " + a)
 
             for word in text.split(' '):
                 if word not in vocab:
