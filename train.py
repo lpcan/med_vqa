@@ -86,7 +86,7 @@ def test_network(model, testloader, vocab, ans_translator):
     total_samples = 0
 
     # Write the output somewhere?
-    f = open('valid_log.txt', 'a+')
+    f = open('valid_log.txt', 'w+')
     f.write('--------------')
 
     with torch.no_grad():
@@ -99,15 +99,13 @@ def test_network(model, testloader, vocab, ans_translator):
             pred = model(v, q)
             answer = torch.argmax(pred, dim=1)
 
-            output = [ans_translator.label_to_word(label) for label in answer]
-            gt = [ans_translator.label_to_word(label) for label in a]
+            output = [ans_translator.label_to_ans(label) for label in answer]
+            gt = [ans_translator.label_to_ans(label) for label in a]
 
             for i in range(len(q)):
-                vocab = testloader.dataset.dataset.question_vocab
                 f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + gt[i] + '\n')
             total_samples += a.size(0)
             total_correct += (answer == a).sum().item()
-
 
     model_accuracy = total_correct/total_samples
     print(f"Accuracy on {total_samples} images: {model_accuracy:.2f}")  
