@@ -76,7 +76,7 @@ def train():
                 test_network(model, testloader, vocab, ans_translator)
 
     if params.train_val_split < 1:
-        test_network(model,testloader)
+        test_network(model, testloader, vocab, ans_translator)
     #torch.save(net.state_dict(), 'savedModel.pth')
     #print("   Model saved to savedModel.pth")
 

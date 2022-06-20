@@ -20,7 +20,7 @@ class Vocab:
         vocab = {'<pad>' : 0}
         idx = 1
         for line in f:
-            _, q, a = line.split(" | ")
+            _, q, a = line.split('|')
             text = data_prep.prepare_text(q + " " + a)
 
             for word in text.split(' '):
