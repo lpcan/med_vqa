@@ -14,10 +14,10 @@ def train():
     ans_translator = vocab_helper.Ans_Translator(params.data)
 
     if params.train_val_split == 1:
-        data = data_prep.VQADataset(data_dir=params.data, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
+        data = data_prep.VQADataset(data_dir=params.data, img_dir=params.img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
         trainloader = torch.utils.data.DataLoader(data, batch_size=params.batch_size, shuffle=True)
     else:
-        data = data_prep.VQADataset(data_dir=params.data, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
+        data = data_prep.VQADataset(data_dir=params.data, img_dir=params.img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
         data_len = len(data)
         train_len = int((params.train_val_split) * data_len)
         test_len = data_len - train_len

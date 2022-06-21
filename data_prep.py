@@ -8,8 +8,9 @@ import glob
 
 # Create the dataset type
 class VQADataset(data.Dataset):
-    def __init__(self, data_dir, vocab, ans_translator, transform=None):
+    def __init__(self, data_dir, img_dir, vocab, ans_translator, transform=None):
         self.data_dir = data_dir
+        self.img_dir = img_dir
         self.images = []
         self.questions = []
         self.answers = []
@@ -31,7 +32,7 @@ class VQADataset(data.Dataset):
         # Find the id of the image
         img_id = self.images[idx]
         # Open the image 
-        img = Image.open(self.data_dir + img_id.strip() + ".jpg")
+        img = Image.open(self.img_dir + img_id.strip() + ".jpg")
         img = img.resize((256, 256)) # resize to 256 x 256?
         v = np.asarray(img)
         if self.transform:

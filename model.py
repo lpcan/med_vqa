@@ -20,8 +20,7 @@ class QEncoder(nn.Module):
     # LSTM
     def __init__(self, wordvec_weights, out_size): # weights = torch.FloatTensor(model.vectors)
         super(QEncoder, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(wordvec_weights) # create the embedding layer
-        self.embedding.requires_grad = False # don't change the embeddings
+        self.embedding = nn.Embedding.from_pretrained(wordvec_weights, freeze=True) # create the embedding layer
         self.tanh = nn.Tanh() # pass embeddings through tanh activation
         self.lstm = nn.LSTM(input_size=wordvec_weights.shape[1], hidden_size=out_size, batch_first=True) # feed into lstm. not sure about input_size 
         self.lin = nn.Linear(2*out_size, out_size)
