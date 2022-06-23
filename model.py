@@ -74,11 +74,11 @@ class AnsGenerator(nn.Module):
 class VQAModel(nn.Module):
     # ImgEncoder & QEncoder -> Feature fusion -> AnsGenerator
 
-    def __init__(self, img_feat_size, wordvec_weights, q_feat_size, out_size):
+    def __init__(self, img_feat_size, wordvec_weights, q_feat_size, out_size, dropout=0):
         super(VQAModel, self).__init__()
         self.img_encoder = ImgEncoder(img_feat_size)
         self.q_encoder = QEncoder(wordvec_weights, q_feat_size)
-        self.classifier = AnsGenerator(img_feat_size + q_feat_size, out_size)
+        self.classifier = AnsGenerator(img_feat_size + q_feat_size, out_size, drop=dropout)
 
     def forward(self, v, q):
         img_feat = self.img_encoder(v) # [batch_size, img_feat_size]
