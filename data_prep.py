@@ -1,6 +1,7 @@
 # Functions to prep input data
 
 import torch.utils.data as data
+import torch
 import re
 from PIL import Image
 import numpy as np
@@ -15,8 +16,15 @@ class VQADataset(data.Dataset):
         self.questions = []
         self.answers = []
         f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='cp1252')
+        top_20 = open("top_20.txt")
+        top_20_ans = []
+        for line in top_20:
+            top_20_ans.append(prepare_text(line))
         for line in f:
             img, q, a = line.split('|')
+            # # Frequency culling 
+            if prepare_text(a) not in top_20_ans:
+                continue # uncommon answer, ignore
             self.images.append(img)
             self.questions.append(prepare_text(q))
             self.answers.append(prepare_text(a))
@@ -70,3 +78,15 @@ def prepare_text(text):
     text = re.sub('[^0-9a-zA-Z-]+', ' ', text)
 
     return text
+
+# Create weights for all the samples, for weighted sampling for balanced classes
+def weights_for_balanced_classes(answers, num_classes, ans_translator):
+    counts = [0] * num_classes
+    for ans in answers:
+        label = ans_translator.ans_to_label(ans)
+        counts[label] += 1
+
+    class_weights = 1./torch.Tensor(counts)
+    sample_weights = [class_weights[ans_translator.ans_to_label(ans)] for ans in answers]
+
+    return sample_weights

@@ -3,6 +3,6 @@ bio_embedding_extrinsic
 __pycache__
 data_analysis
 Datasets
-*.pbs
+*.pbs*
 *.txt
 venv

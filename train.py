@@ -22,8 +22,14 @@ def train():
         train_len = int((params.train_val_split) * data_len)
         test_len = data_len - train_len
         train_set, test_set = torch.utils.data.random_split(data, [train_len, test_len])
-        trainloader = torch.utils.data.DataLoader(train_set, batch_size=params.batch_size, shuffle=True)
-        testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=True)
+
+        # Create a weighted sampler to correct frequency differences
+        train_ans = [ans_translator.label_to_ans(data[2]) for data in train_set]
+        weights = data_prep.weights_for_balanced_classes(train_ans, len(ans_translator.answer_list), ans_translator)
+        sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
+
+        trainloader = torch.utils.data.DataLoader(train_set, batch_size=params.batch_size, sampler=sampler, shuffle=False)
+        testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=False)
 
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
