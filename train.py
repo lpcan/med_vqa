@@ -1,5 +1,6 @@
 import torch
 from torch import nn, optim
+import matplotlib.pyplot as plt
 
 from model import VQAModel
 import params
@@ -13,6 +14,7 @@ def train():
     vocab = vocab_helper.Vocab(params.data)
     ans_translator = vocab_helper.Ans_Translator(params.data)
 
+    # TODO: Add in validation data as well
     if params.train_val_split == 1:
         data = data_prep.VQADataset(data_dir=params.data, img_dir=params.img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
         trainloader = torch.utils.data.DataLoader(data, batch_size=params.batch_size, shuffle=True)
@@ -24,6 +26,17 @@ def train():
         train_set, test_set = torch.utils.data.random_split(data, [train_len, test_len])
         trainloader = torch.utils.data.DataLoader(train_set, batch_size=params.batch_size, shuffle=True)
         testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=True)
+
+    
+
+    for thing in trainloader:
+        img = thing[0][0]
+        print(img.shape)
+        img = torch.permute(img, (1, 2, 0))
+        print(img.shape)
+        plt.imshow(img)
+        plt.show()
+        break
 
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
