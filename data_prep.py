@@ -1,5 +1,6 @@
 # Functions to prep input data
 
+import torch
 import torch.utils.data as data
 import re
 from PIL import Image
