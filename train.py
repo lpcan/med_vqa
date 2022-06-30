@@ -11,32 +11,23 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def train():
     print("Loading data...")
-    vocab = vocab_helper.Vocab(params.data)
-    ans_translator = vocab_helper.Ans_Translator(params.data)
+    vocab = vocab_helper.Vocab([params.train_data, params.val_data])
+    ans_translator = vocab_helper.Ans_Translator(params.train_data)
 
-    # TODO: Add in validation data as well
-    if params.train_val_split == 1:
-        data = data_prep.VQADataset(data_dir=params.data, img_dir=params.img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
-        trainloader = torch.utils.data.DataLoader(data, batch_size=params.batch_size, shuffle=True)
-    else:
-        data = data_prep.VQADataset(data_dir=params.data, img_dir=params.img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.transform)
+    if params.train_data != params.val_data: 
+        train_data = data_prep.VQADataset(data_dir=params.train_data, img_dir=params.train_img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.train_transform)
+        test_data = data_prep.VQADataset(data_dir=params.val_data, img_dir=params.val_img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.val_transform)
+        trainloader = torch.utils.data.DataLoader(train_data, batch_size=params.batch_size, shuffle=True)
+        testloader = torch.utils.data.DataLoader(test_data, batch_size=params.batch_size, shuffle=False)
+    else: # no separate validation dataset
+        # TODO: fix for separate train and validation transforms
+        data = data_prep.VQADataset(data_dir=params.train_data, img_dir=params.train_img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.train_transform)
         data_len = len(data)
         train_len = int((params.train_val_split) * data_len)
         test_len = data_len - train_len
         train_set, test_set = torch.utils.data.random_split(data, [train_len, test_len])
         trainloader = torch.utils.data.DataLoader(train_set, batch_size=params.batch_size, shuffle=True)
-        testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=True)
-
-    
-
-    for thing in trainloader:
-        img = thing[0][0]
-        print(img.shape)
-        img = torch.permute(img, (1, 2, 0))
-        print(img.shape)
-        plt.imshow(img)
-        plt.show()
-        break
+        testloader = torch.utils.data.DataLoader(test_set, batch_size=params.batch_size, shuffle=False)
 
     # Initialise model, loss function, and optimiser
     print("Initialising model...")

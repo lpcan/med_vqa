@@ -15,7 +15,7 @@ class VQADataset(data.Dataset):
         self.images = []
         self.questions = []
         self.answers = []
-        f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='cp1252')
+        f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='utf-8')
         for line in f:
             img, q, a = line.split('|')
             self.images.append(img)

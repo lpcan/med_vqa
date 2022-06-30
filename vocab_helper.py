@@ -8,25 +8,29 @@ import torch
 import data_prep
 
 class Vocab:
-    def __init__(self, data_dir):
-        # Construct a vocab dictionary and corresponding embedding matrix
-        self.vocab_dict = self.create_vocab(data_dir)# make vocab dictionary to get index from key
-        self.vocab_list = list(self.vocab_dict) # vocab list to get key from index
-        self.embeddings = self.get_embeddings(data_dir)
+    def __init__(self, data_dirs):
+        if data_dirs[1] == data_dirs[0]:
+            # No separate train and val set
+            data_dirs = [data_dirs[0]]
 
-    def create_vocab(self, data_dir):
+        # Construct a vocab dictionary and corresponding embedding matrix
+        self.vocab_dict = self.create_vocab(data_dirs)# make vocab dictionary to get index from key
+        self.vocab_list = list(self.vocab_dict) # vocab list to get key from index
+        self.embeddings = self.get_embeddings(data_dirs[0]) # embeddings will be stored in training dataset folder, arbitrarily
+
+    def create_vocab(self, data_dirs):
         # Get all vocabulary
-        f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='cp1252')
         vocab = {'<pad>' : 0}
         idx = 1
-        for line in f:
-            _, q, a = line.split('|')
-            text = data_prep.prepare_text(q + " " + a)
-
-            for word in text.split(' '):
-                if word not in vocab:
-                    vocab[word] = idx
-                    idx += 1
+        for data_dir in data_dirs:
+            f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='utf-8')
+            for i, line in enumerate(f):
+                _, q, a = line.split('|')
+                text = data_prep.prepare_text(q + " " + a)
+                for word in text.split(' '):
+                    if word not in vocab:
+                        vocab[word] = idx
+                        idx += 1
         return vocab
 
     def get_embeddings(self, data_dir):
@@ -76,7 +80,7 @@ class Ans_Translator:
 
     # Get list of possible answers
     def create_answer_dict(self, data_dir):
-        f = open(glob.glob(data_dir + "All_QA_Pairs*.txt")[0], encoding='cp1252')
+        f = open(glob.glob(data_dir + "All_QA_Pairs*.txt")[0], encoding='utf-8')
         all_answers = []
         for line in f:
             _, _, a = line.split('|')

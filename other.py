@@ -1,14 +1,16 @@
 """Dataset analysis functions"""
 
 import re
-from cv2 import rotate
 import matplotlib.pyplot as plt
 import glob
-import numpy as np
+import torch
+import torchvision.transforms as transforms
 
-from data_prep import create_dict, prepare_text
+import data_prep
+import vocab_helper
 
 # Run a check of all words in VQA-RAD dataset, find those that don't exist in the dictionary, and write to a file
+# Broken now because missing create_dict
 def check_vocab():
     f = open(glob.glob(data_dir + "All_QA_Pairs*")[0], "r")
     dict = create_dict("bio_embedding_extrinsic")
@@ -133,7 +135,7 @@ def chart_q_structure():
     tree = Node(None)
     for line in f:
         _, q, _ = line.split('|')
-        tree.insert_sentence(prepare_text(q))
+        tree.insert_sentence(data_prep.prepare_text(q))
     
     # Now use the tree to construct a nested pie chart
     word_lists, count_lists = tree.get_tree(0, [[], [], [], []], [[], [], [], []])
@@ -190,6 +192,38 @@ def chart_q_structure():
     plt.savefig(f"q structure {data_dir.split('/')[-2]}")
     plt.show()
 
-# data_dir = "../Datasets/ImageClef-2019-VQA-Med-Training/"
-data_dir = "../Datasets/VQA-RAD/"
-chart_q_structure()
+# Calculate the mean and standard deviation of dataset images
+def get_mean_std():
+    data = data_prep.VQADataset(data_dir=data_dir, img_dir=img_dir, vocab=vocab, ans_translator=ans_translator, transform=transforms.ToTensor())
+    trainloader = torch.utils.data.DataLoader(data, batch_size=64, shuffle=True)
+    print(f"{len(trainloader)} batches")
+    print("Computing mean")
+    mean = 0.0
+    i = 1
+    for images, _, _ in trainloader:
+        print(f"Batch {i}")
+        batch_samples = images.size(0)
+        images = images.view(batch_samples, images.size(1), -1)
+        mean += images.mean(2).sum(0)
+        i += 1
+    mean = mean / len(trainloader.dataset)
+
+    print("Computing std")
+    var = 0.0
+    i = 1
+    for images, _, _ in trainloader:
+        print(f"Batch {i}")
+        batch_samples = images.size(0)
+        images = images.view(batch_samples, images.size(1), -1)
+        var += ((images - mean.unsqueeze(1))**2).sum([0,2])
+        i+=1
+    std = torch.sqrt(var / (len(trainloader.dataset)*256*256))
+
+    return mean, std
+
+data_dir = "Datasets/ImageClef-2019-VQA-Med-Training/"
+img_dir = "Datasets/ImageClef-2019-VQA-Med-Training/Train_images/"
+vocab = vocab_helper.Vocab(data_dir)
+ans_translator = vocab_helper.Ans_Translator(data_dir)
+# data_dir = "Datasets/VQA-RAD/"
+print(get_mean_std())

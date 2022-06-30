@@ -13,11 +13,16 @@ class AddGaussianNoise(object):
     def __repr__(self):
         return self.__class__.__name__ +  '(mean={0}, std={1}'.format(self.mean, self.std)
 
-transform = transforms.Compose([transforms.ToTensor(),
-                                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                                                     std=[0.229, 0.224, 0.225]),
+train_transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize(mean=[0.263, 0.262, 0.262], 
+                                                     std=[0.262, 0.262, 0.262]),
+                                transforms.RandomApply(transforms=[transforms.ColorJitter(brightness=(0.9, 1.0), contrast=(0.9,1.0))], p=0.4),
                                 transforms.RandomRotation(10), 
-                                transforms.RandomAdjustSharpness(2, p=0.3),
-                                transforms.ColorJitter(brightness=0.5, contrast=0.5),
-                                transforms.RandomApply(transforms=[AddGaussianNoise(0., 1.)], p=0.3),
+                                transforms.RandomApply(transforms=[AddGaussianNoise(0., 0.1)], p=0.4),
                                 transforms.Grayscale(num_output_channels=3)])
+
+# Separate transform for validation
+val_transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=[0.263, 0.262, 0.262], 
+                                                     std=[0.262, 0.262, 0.262]),
+                                    transforms.Grayscale(num_output_channels=3)])
