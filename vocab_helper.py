@@ -73,18 +73,23 @@ class Vocab:
         return sentence
 
 class Ans_Translator:
-    def __init__(self, data_dir):
+    def __init__(self, data_dirs):
+        if data_dirs[1] == data_dirs[0]:
+            # No separate train and val set
+            data_dirs = [data_dirs[0]]
         # Get all unique answers
-        self.answer_dict = self.create_answer_dict(data_dir)
+        self.answer_dict = self.create_answer_dict(data_dirs)
         self.answer_list = list(self.answer_dict)
 
     # Get list of possible answers
-    def create_answer_dict(self, data_dir):
-        f = open(glob.glob(data_dir + "All_QA_Pairs*.txt")[0], encoding='utf-8')
+    def create_answer_dict(self, data_dirs):
         all_answers = []
-        for line in f:
-            _, _, a = line.split('|')
-            all_answers.append(data_prep.prepare_text(a))
+        for data_dir in data_dirs:
+            f = open(glob.glob(data_dir + "All_QA_Pairs*.txt")[0], encoding='utf-8')
+            
+            for line in f:
+                _, _, a = line.split('|')
+                all_answers.append(data_prep.prepare_text(a))
 
         answers = list(set(all_answers))
         answers = {answers[i]: i for i in range(len(answers))} # Create a dictionary with a unique index for each answer

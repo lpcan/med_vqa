@@ -12,7 +12,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 def train():
     print("Loading data...")
     vocab = vocab_helper.Vocab([params.train_data, params.val_data])
-    ans_translator = vocab_helper.Ans_Translator(params.train_data)
+    ans_translator = vocab_helper.Ans_Translator([params.train_data, params.val_data])
 
     if params.train_data != params.val_data: 
         train_data = data_prep.VQADataset(data_dir=params.train_data, img_dir=params.train_img_dir, vocab=vocab, ans_translator=ans_translator, transform=params.train_transform)
