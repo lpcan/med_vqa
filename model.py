@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-from gensim.models import KeyedVectors
+from transformers import PreTrainedModel, AutoConfig, AutoModel
 
 class ImgEncoder(nn.Module):
     # VGG-16
@@ -16,25 +16,18 @@ class ImgEncoder(nn.Module):
         # normalisation???
         return out
 
-class QEncoder(nn.Module):
-    # LSTM
-    def __init__(self, wordvec_weights, out_size): # weights = torch.FloatTensor(model.vectors)
+class QEncoder(PreTrainedModel):
+    # BioBERT Transformer
+    def __init__(self, q_feat_size): 
         super(QEncoder, self).__init__()
-        self.embedding = nn.Embedding.from_pretrained(wordvec_weights, freeze=True) # create the embedding layer
-        self.tanh = nn.Tanh() # pass embeddings through tanh activation
-        self.lstm = nn.LSTM(input_size=wordvec_weights.shape[1], hidden_size=out_size, batch_first=True) # feed into lstm. not sure about input_size 
-        self.lin = nn.Linear(2*out_size, out_size)
-
+        # Instantiate the BioBERT model
+        self.model = AutoModel.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
+        self.linear = nn.Linear(768, q_feat_size)
+        
     def forward(self, input):
-        q_vec = self.tanh(self.embedding(input))
-        output, (hidden, cell) = self.lstm(q_vec) # [batch_size, q_length, out_size], ([1, batch_size, out_size], [1, batch_size, out_size])
-        
-        # We want to include both the hidden and the cell state - needs to be reshaped
-        q_feat = torch.cat((hidden, cell), 2) # [1, batch_size, 2*out_size]
-        q_feat = self.tanh(q_feat)
-        q_feat = self.lin(q_feat) # [1, batch_size, out_size]
-        
-        return q_feat.squeeze(0) # [batch_size, out_size]
+        _, output = self.model(input) # [batch_size, 768 (hidden_size)]
+        output = self.linear(output)
+        return output
 
 """
 class AnsGenerator(nn.Module):
@@ -74,10 +67,10 @@ class AnsGenerator(nn.Module):
 class VQAModel(nn.Module):
     # ImgEncoder & QEncoder -> Feature fusion -> AnsGenerator
 
-    def __init__(self, img_feat_size, wordvec_weights, q_feat_size, out_size, dropout=0):
+    def __init__(self, img_feat_size, q_feat_size, out_size, dropout=0):
         super(VQAModel, self).__init__()
         self.img_encoder = ImgEncoder(img_feat_size)
-        self.q_encoder = QEncoder(wordvec_weights, q_feat_size)
+        self.q_encoder = QEncoder(q_feat_size)
         self.classifier = AnsGenerator(img_feat_size + q_feat_size, out_size, drop=dropout)
 
     def forward(self, v, q):
