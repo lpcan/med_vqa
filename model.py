@@ -19,14 +19,16 @@ class ImgEncoder(nn.Module):
 class QEncoder(PreTrainedModel):
     # BioBERT Transformer
     def __init__(self, q_feat_size): 
-        super(QEncoder, self).__init__()
+        config = AutoConfig.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
+        super(QEncoder, self).__init__(config)
         # Instantiate the BioBERT model
         self.model = AutoModel.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
         self.linear = nn.Linear(768, q_feat_size)
         
     def forward(self, input):
-        _, output = self.model(input) # [batch_size, 768 (hidden_size)]
-        output = self.linear(output)
+        output = self.model(input) # dictionary of last_hidden_state: [batch_size, q_length, 768], pooler_output: [batch_size, 768] 
+        output = output[1] # [batch_size, 768 (hidden_size)]
+        output = self.linear(output) # [batch_size, q_feat_size]
         return output
 
 """

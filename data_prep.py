@@ -25,7 +25,7 @@ class VQADataset(data.Dataset):
 
         self.vocab = vocab
         # self.answer_vocab = Vocab(self.answers)
-        self.max_q_len = max([len(q.split(' ')) for q in self.questions])
+        self.max_q_len = max([len(vocab.sentence_to_idx(q)) for q in self.questions])
         self.max_ans_len = max([len(a.split(' ')) for a in self.answers])
         self.ans_translator = ans_translator
         
@@ -41,8 +41,7 @@ class VQADataset(data.Dataset):
 
         # Get the question and convert to a tensor. All sentences padded to max question length.
         q_words = self.questions[idx]
-        q = np.array([self.vocab.word2idx('<pad>')]  * self.max_q_len)
-        q[:len(prepare_text(q_words).split(' '))] = self.vocab.sentence_to_idx(q_words)
+        q = torch.tensor(self.vocab.sentence_to_idx(q_words, self.max_q_len))
 
         # # Do the same with the answers
         # a_words = self.answers[idx]
@@ -52,7 +51,7 @@ class VQADataset(data.Dataset):
         # Convert answer to label
         a = self.answers[idx]
         a = self.ans_translator.ans_to_label(a)
-        
+
         return v, q, a
 
     def __len__(self):

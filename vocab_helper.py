@@ -13,9 +13,12 @@ class Vocab:
         # Construct a tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
 
-    def sentence_to_idx(self, sentence):
-        return self.tokenizer.encode(sentence, add_special_tokens=True)
-    
+    def sentence_to_idx(self, sentence, max_len=None):
+        if max_len:
+            return self.tokenizer.encode(sentence, add_special_tokens=True, padding='max_length', max_length=max_len)
+        else:
+            return self.tokenizer.encode(sentence, add_special_tokens=True)
+
     def idx_to_sentence(self, idxs):
         self.tokenizer.decode(idxs, skip_special_tokens=True)
 
