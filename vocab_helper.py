@@ -20,7 +20,7 @@ class Vocab:
             return self.tokenizer.encode(sentence, add_special_tokens=True)
 
     def idx_to_sentence(self, idxs):
-        self.tokenizer.decode(idxs, skip_special_tokens=True)
+        return self.tokenizer.decode(idxs, skip_special_tokens=True)
 
 class Ans_Translator:
     def __init__(self, data_dir):
@@ -41,7 +41,13 @@ class Ans_Translator:
         return answers
 
     def ans_to_label(self, ans):
-        return self.answer_dict[ans]
+        if ans not in self.answer_dict:
+            return -1
+        else:
+            return self.answer_dict[ans]
     
     def label_to_ans(self, label):
-        return self.answer_list[label]
+        if label == -1:
+            return "NOT IN ANSWER LIST"
+        else:
+            return self.answer_list[label]
