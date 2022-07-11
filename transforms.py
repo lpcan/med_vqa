@@ -16,8 +16,9 @@ class AddGaussianNoise(object):
 train_transform = transforms.Compose([transforms.ToTensor(),
                                 transforms.Normalize(mean=[0.263, 0.262, 0.262], 
                                                      std=[0.262, 0.262, 0.262]),
-                                transforms.RandomApply(transforms=[transforms.ColorJitter(brightness=(0.9, 1.0), contrast=(0.9,1.0))], p=0.4),
-                                transforms.RandomRotation(10), 
+                                transforms.RandomApply(transforms=[transforms.ColorJitter(brightness=(0.9, 1.1), contrast=(0.9,1.1))], p=0.4),
+                                transforms.RandomAffine(20, translate=(0.05, 0.05), shear=(0.2, 0.2, 0.2, 0.2)), 
+                                transforms.RandomApply(transforms=[transforms.GaussianBlur(5)], p=0.5),
                                 transforms.RandomApply(transforms=[AddGaussianNoise(0., 0.1)], p=0.4),
                                 transforms.Grayscale(num_output_channels=3)])
 
