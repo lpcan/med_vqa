@@ -76,10 +76,10 @@ def train():
         print(f"Total_correct: {total_correct}\nLoss: {total_loss:.2f}\nAcc: {model_accuracy:.2f}")
 
         if epoch % 1 == 0: # validate after every epoch?
-            if params.train_val_split < 1:
+            if params.train_val_split is None or params.train_val_split < 1:
                 test_network(model, testloader, vocab, ans_translator)
 
-    if params.train_val_split < 1:
+    if params.train_val_split is None or params.train_val_split < 1:
         test_network(model, testloader, vocab, ans_translator)
     #torch.save(net.state_dict(), 'savedModel.pth')
     #print("   Model saved to savedModel.pth")
