@@ -17,12 +17,12 @@ class ImgEncoder(nn.Module):
         return out
 
 class QEncoder(PreTrainedModel):
-    # BioBERT Transformer
+    # BERT Transformer
     def __init__(self, q_feat_size): 
-        config = AutoConfig.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
+        config = AutoConfig.from_pretrained('bert-base-cased')
         super(QEncoder, self).__init__(config)
-        # Instantiate the BioBERT model
-        self.model = AutoModel.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
+        # Instantiate the BERT model
+        self.model = AutoModel.from_pretrained('bert-base-cased')
         self.linear = nn.Linear(768, q_feat_size)
         
     def forward(self, input):
