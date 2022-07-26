@@ -7,7 +7,7 @@ class ImgEncoder(nn.Module):
     # VGG-16
     def __init__(self, out_size):
         super(ImgEncoder, self).__init__()
-        self.model = models.resnet18(pretrained=True) # load model
+        self.model = models.resnet152(pretrained=True) # load model
         in_feat = self.model.fc.in_features
         self.model.fc = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
 
