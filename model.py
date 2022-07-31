@@ -9,8 +9,10 @@ class ImgEncoder(nn.Module):
     def __init__(self, out_size):
         super(ImgEncoder, self).__init__()
         self.model = models.vgg16(pretrained=True) # load model
-        in_feat = self.model.classifier[6].in_features
-        self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+        #in_feat = self.model.classifier[6].in_features
+        #self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+        del self.model.classifier # Remove the dense layers
+        self.model.avgpool = nn.AdaptiveAvgPool2d(output_size=1) # Global Average Pooling [1x1x]
 
     def forward(self, input):
         out = self.model(input) # we are finetuning the entire model, so no need to freeze parameters
