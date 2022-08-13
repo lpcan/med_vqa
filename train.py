@@ -32,7 +32,7 @@ def train():
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
     num_answers = len(ans_translator.answer_list)
-    model = VQAModel(feat_size=512, out_size = num_answers, num_layers = params.num_attn_layers, dropout=0.5)
+    model = VQAModel(feat_size=256, out_size = num_answers, num_layers = params.num_attn_layers, dropout=0.5)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimiser = optim.Adam(model.parameters(), lr=params.lr)
