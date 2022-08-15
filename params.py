@@ -1,15 +1,16 @@
-import torchvision.transforms as transforms
+import transforms
 
-train_val_split = 0.8
-data = "Datasets/ImageClef-2019-VQA-Med-Training/"
-img_dir = "Datasets/ImageClef-2019-VQA-Med-Training/Train_images/"
-wv_path = "bio_embedding_extrinsic"
+# Parameters
+k_folds = 5 # Set to 0 if no cross-validation is to be performed. If performed, all data must be in train_data directory
+train_val_split = 0.8 # Not necessary if using separate training and validation sets
 batch_size = 64
-epochs = 100
-transform = transforms.Compose([transforms.ToTensor(),
-                                transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                                                     std=[0.229, 0.224, 0.225]),
-                                transforms.RandomRotation(10), 
-                                transforms.RandomAdjustSharpness(2, p=0.2),
-                                transforms.ColorJitter(brightness=0.2, contrast=0.2),
-                                transforms.Grayscale(num_output_channels=3)])
+epochs = 50
+train_transform = transforms.train_transform
+val_transform = transforms.val_transform
+
+# Various datasets
+train_data = "Datasets/2019-VQA-Med-All/"
+train_img_dir = "Datasets/ImageClef-2019-VQA-Med-Training/Train_images/"
+val_data = "Datasets/ImageClef-2019-VQA-Med-Validation/"
+val_img_dir = "Datasets/ImageClef-2019-VQA-Med-Validation/Val_images/"
+wv_path = "bio_embedding_extrinsic"

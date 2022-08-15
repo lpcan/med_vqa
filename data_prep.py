@@ -1,5 +1,6 @@
 # Functions to prep input data
 
+import torch
 import torch.utils.data as data
 import re
 from PIL import Image
@@ -14,7 +15,7 @@ class VQADataset(data.Dataset):
         self.images = []
         self.questions = []
         self.answers = []
-        f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='cp1252')
+        f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='utf-8')
         for line in f:
             img, q, a = line.split('|')
             self.images.append(img)
@@ -70,3 +71,18 @@ def prepare_text(text):
     text = re.sub('[^0-9a-zA-Z-]+', ' ', text)
 
     return text
+
+# This class allows train/test split with different transforms
+class DatasetFromSubset(data.Dataset):
+    def __init__(self, subset, transform=None):
+        self.subset = subset
+        self.transform = transform
+
+    def __getitem__(self, index):
+        v, q, a = self.subset[index]
+        if self.transform:
+            v = self.transform(v)
+        return v, q, a
+
+    def __len__(self):
+        return len(self.subset)
