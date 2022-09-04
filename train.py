@@ -32,10 +32,10 @@ def train():
     # Initialise model, loss function, and optimiser
     print("Initialising model...")
     num_answers = len(ans_translator.answer_list)
-    model = VQAModel(img_feat_size=512, wordvec_weights=vocab.embeddings, q_feat_size=512, out_size = num_answers, dropout=0.5)
+    model = VQAModel(feat_size=512, out_size = num_answers, num_layers = params.num_attn_layers, dropout=0.5)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimiser = optim.Adam(model.parameters(), lr=1e-5)
+    optimiser = optim.Adam(model.parameters(), lr=params.lr)
 
     # Start training
     for epoch in range(params.epochs):
@@ -76,10 +76,10 @@ def train():
         print(f"Total_correct: {total_correct}\nLoss: {total_loss:.2f}\nAcc: {model_accuracy:.2f}")
 
         if epoch % 1 == 0: # validate after every epoch?
-            if params.train_val_split < 1:
+            if params.train_val_split is None or params.train_val_split < 1:
                 test_network(model, testloader, vocab, ans_translator)
 
-    if params.train_val_split < 1:
+    if params.train_val_split is None or params.train_val_split < 1:
         test_network(model, testloader, vocab, ans_translator)
     #torch.save(net.state_dict(), 'savedModel.pth')
     #print("   Model saved to savedModel.pth")

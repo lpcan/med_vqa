@@ -4,73 +4,23 @@ import glob
 import numpy as np
 from gensim.models import KeyedVectors
 import torch
+from transformers import AutoTokenizer
 
 import data_prep
 
 class Vocab:
     def __init__(self, data_dirs):
-        if data_dirs[1] == data_dirs[0]:
-            # No separate train and val set
-            data_dirs = [data_dirs[0]]
+        # Construct a tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
 
-        # Construct a vocab dictionary and corresponding embedding matrix
-        self.vocab_dict = self.create_vocab(data_dirs)# make vocab dictionary to get index from key
-        self.vocab_list = list(self.vocab_dict) # vocab list to get key from index
-        self.embeddings = self.get_embeddings(data_dirs[0]) # embeddings will be stored in training dataset folder, arbitrarily
-
-    def create_vocab(self, data_dirs):
-        # Get all vocabulary
-        vocab = {'<pad>' : 0}
-        idx = 1
-        for data_dir in data_dirs:
-            f = open(glob.glob(data_dir+"All_QA_Pairs*.txt")[0], encoding='utf-8')
-            for i, line in enumerate(f):
-                _, q, a = line.split('|')
-                text = data_prep.prepare_text(q + " " + a)
-                for word in text.split(' '):
-                    if word not in vocab:
-                        vocab[word] = idx
-                        idx += 1
-        return vocab
-
-    def get_embeddings(self, data_dir):
-        if len(glob.glob(data_dir + "word_vec.npy")) > 0:
-            vectors = np.load(data_dir + "word_vec.npy") # Word vectors stored as numpy matrix
+    def sentence_to_idx(self, sentence, max_len=None):
+        if max_len:
+            return self.tokenizer.encode(sentence, add_special_tokens=True, padding='max_length', max_length=max_len)
         else:
-            wv = KeyedVectors.load_word2vec_format("bio_embedding_extrinsic", binary=True) # Load pretrained word vector
-            dim = len(wv[0]) # dimension of the vectors
-            vectors = np.zeros((len(self.vocab_list), dim))
-            # Only want to keep vocab that will be used
-            for word in self.vocab_list:
-                if word not in wv:
-                    # Generate a random vector - could try something more sophisticated than this
-                    vectors[self.vocab_dict[word]] = np.random.randn(dim)
-                else:
-                    # Use pretrained word vector
-                    vectors[self.vocab_dict[word]] = wv[word]
-            
-            np.save(data_dir + "word_vec", vectors)
-            
-        vectors = torch.FloatTensor(vectors)
-        return vectors
+            return self.tokenizer.encode(sentence, add_special_tokens=True)
 
-    def word2idx(self, word):
-        return self.vocab_dict[word]
-
-    def sentence_to_idx(self, sentence):
-        return [self.word2idx(w) for w in data_prep.prepare_text(sentence).split(' ')]
-
-    def idx2word(self, idx):
-        return self.vocab_list[idx]
-    
     def idx_to_sentence(self, idxs):
-        sentence = ''
-        for idx in idxs:
-            if self.idx2word(idx) == '<pad>':
-                break
-            else:
-                sentence += self.vocab_list[idx] + ' '
-        return sentence
+        return self.tokenizer.decode(idxs, skip_special_tokens=True)
 
 class Ans_Translator:
     def __init__(self, data_dirs):
@@ -96,7 +46,13 @@ class Ans_Translator:
         return answers
 
     def ans_to_label(self, ans):
-        return self.answer_dict[ans]
+        if ans not in self.answer_dict:
+            return -1
+        else:
+            return self.answer_dict[ans]
     
     def label_to_ans(self, label):
-        return self.answer_list[label]
+        if label == -1:
+            return "NOT IN ANSWER LIST"
+        else:
+            return self.answer_list[label]
