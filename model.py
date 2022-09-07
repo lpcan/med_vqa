@@ -7,9 +7,9 @@ class ImgEncoder(nn.Module):
     # VGG-16
     def __init__(self, out_size):
         super(ImgEncoder, self).__init__()
-        self.model = models.resnet152(pretrained=True) # load model
-        in_feat = self.model.fc.in_features
-        self.model.fc = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+        self.model = models.vgg16(pretrained=True) # load model
+        in_feat = self.model.classifier[6].in_features
+        self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
 
     def forward(self, input):
         out = self.model(input) # we are finetuning the entire model, so no need to freeze parameters
