@@ -19,10 +19,10 @@ class ImgEncoder(nn.Module):
 class QEncoder(PreTrainedModel):
     # BERT Transformer
     def __init__(self, q_feat_size): 
-        config = AutoConfig.from_pretrained('bert-base-cased')
+        config = AutoConfig.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
         super(QEncoder, self).__init__(config)
         # Instantiate the BERT model
-        self.model = AutoModel.from_pretrained('bert-base-cased')
+        self.model = AutoModel.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
         self.linear = nn.Linear(768, q_feat_size)
         
     def forward(self, input):
