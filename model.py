@@ -9,10 +9,10 @@ class ImgEncoder(nn.Module):
     def __init__(self, out_size):
         super(ImgEncoder, self).__init__()
         self.model = models.vgg16(pretrained=True) # load model
-        #in_feat = self.model.classifier[6].in_features
-        #self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
-        del self.model.classifier # Remove the dense layers
-        self.model.avgpool = nn.AdaptiveAvgPool2d(output_size=1) # Global Average Pooling [1x1x]
+        in_feat = self.model.classifier[6].in_features
+        self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+        #del self.model.classifier # Remove the dense layers
+        #self.model.avgpool = nn.AdaptiveAvgPool2d(output_size=1) # Global Average Pooling [1x1x]
 
     def forward(self, input):
         out = self.model(input) # we are finetuning the entire model, so no need to freeze parameters
@@ -20,11 +20,11 @@ class ImgEncoder(nn.Module):
         return out
 
 class QEncoder(PreTrainedModel):
-    # BioBERT Transformer
+    # BERT Transformer
     def __init__(self, q_feat_size): 
         config = AutoConfig.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
         super(QEncoder, self).__init__(config)
-        # Instantiate the BioBERT model
+        # Instantiate the BERT model
         self.model = AutoModel.from_pretrained('dmis-lab/biobert-base-cased-v1.1')
         self.linear = nn.Linear(768, q_feat_size)
         
