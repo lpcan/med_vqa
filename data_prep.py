@@ -70,3 +70,18 @@ def prepare_text(text):
     text = re.sub('[^0-9a-zA-Z-]+', ' ', text)
 
     return text
+
+# This class allows train/test split with different transforms
+class DatasetFromSubset(data.Dataset):
+    def __init__(self, subset, transform=None):
+        self.subset = subset
+        self.transform = transform
+
+    def __getitem__(self, index):
+        v, q, a = self.subset[index]
+        if self.transform:
+            v = self.transform(v)
+        return v, q, a
+
+    def __len__(self):
+        return len(self.subset)
