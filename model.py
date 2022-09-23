@@ -76,7 +76,8 @@ class SAN(nn.Module):
             # Get the refined query vector
             refined_query = weighted_vec + refined_query # [batch_size, feat_size]
 
-        return refined_query
+        #return refined_query
+        return weighted_vec
 
 class AnsGenerator(nn.Module):
     # Classification method
