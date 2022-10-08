@@ -4,11 +4,20 @@ from torch.nn import functional as F
 from torchvision import models
 from transformers import PreTrainedModel, AutoConfig, AutoModel
 
+import random
+import matplotlib.pyplot as plt
+import numpy as np
+from vocab_helper import Vocab
+
 class ImgEncoder(nn.Module):
     # VGG-16
     def __init__(self, out_size):
         super(ImgEncoder, self).__init__()
         self.model = models.vgg16(pretrained=True).features # load model and pull out the part we want
+        # Load the pretrained model
+        #self.model = models.vgg16()
+        #self.model.load_state_dict(torch.load("pretraining/ss_vgg16.pth"))
+        #self.model = self.model.features # Pull out just the part we want (for SAN)
         self.linear = nn.Linear(512, out_size) # Reshape to match q_feat size
 
         #in_feat = self.model.classifier[6].in_features
@@ -68,7 +77,7 @@ class SAN(nn.Module):
             hidden_vec = torch.tanh(self.img_layer[i](img_vector) + self.q_layer[i](refined_query).unsqueeze(1)) # [batch_size, 64, hidden_size]
 
             # Get attention distribution
-            attn_dist = F.softmax(self.attn[i](hidden_vec), dim=1) # [batch_size, 64, 1]
+            attn_dist = F.sigmoid(self.attn[i](hidden_vec)) # [batch_size, 64, 1]
 
             # Get the weighted image vector and aggregate
             weighted_vec = torch.sum(attn_dist * img_vector, dim=1) # [batch_size, feat_size]
@@ -77,7 +86,7 @@ class SAN(nn.Module):
             refined_query = weighted_vec + refined_query # [batch_size, feat_size]
 
         #return refined_query
-        return weighted_vec
+        return weighted_vec, attn_dist
 
 class AnsGenerator(nn.Module):
     # Classification method
@@ -102,6 +111,9 @@ class VQAModel(nn.Module):
     def __init__(self, feat_size, out_size, num_layers=3, dropout=0):
         super(VQAModel, self).__init__()
         self.img_encoder = ImgEncoder(feat_size)
+        # Load the pretrained model
+        #self.img_encoder.load_state_dict(torch.load("pretraining/ss_vgg16.pth"))
+
         self.q_encoder = QEncoder(feat_size)
         self.attention = SAN(num_layers, feat_size, 256)
         self.classifier = AnsGenerator(feat_size, out_size, drop=dropout)
@@ -109,11 +121,11 @@ class VQAModel(nn.Module):
     def forward(self, v, q):
         img_feat = self.img_encoder(v) # [batch_size, 64, feat_size]
         q_feat = self.q_encoder(q) # [batch_size, feat_size]
-        fused_feat = self.attention(img_feat, q_feat) # [batch_size, feat_size]
+        fused_feat, attn_map = self.attention(img_feat, q_feat) # [batch_size, feat_size]
 
         # Find the most likely answer
         ans = self.classifier(fused_feat)
         
-        return ans
+        return ans, attn_map # return attention map for attention visualisation
 
         

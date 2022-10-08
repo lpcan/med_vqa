@@ -1,6 +1,9 @@
 import torch
 from torch import nn, optim
 import matplotlib.pyplot as plt
+import random
+import cv2
+import numpy as np
 
 from model import VQAModel
 import params
@@ -89,10 +92,24 @@ def train():
                 a = a.to(device)
 
                 # Get the predictions for this batch
-                pred = model(v, q)
-                
+                pred, attn_map = model(v, q)
+
                 # Get the output answer
                 answer = torch.argmax(pred, dim=1)
+
+                # Display one example from this batch
+                if epoch % 10 == 0 and i % 10 == 0:
+                    ex = random.randint(0, params.batch_size-1)
+                    attn = attn_map[ex].view(8, 8).cpu().detach().numpy() # Reshape back to image
+                    attn = cv2.resize(attn, dsize = (256,256))
+
+                    plt.subplot(1, 2, 1)
+                    plt.imshow(np.transpose(v[ex].cpu(), axes=(1,2,0)))
+                    plt.subplot(1, 2, 2)
+                    plt.imshow(np.transpose(v[ex].cpu() * attn, axes=(1,2,0)))
+                    plt.suptitle(vocab.idx_to_sentence(q[ex]) + " / " + ans_translator.label_to_ans(a[ex]) + " / " + ans_translator.label_to_ans(answer[ex]))
+                    plt.savefig(f"attention/{epoch}_{i}_{ex}")
+                    plt.close()
 
                 # Calculate the loss
                 loss = criterion(pred, a)
@@ -146,7 +163,7 @@ def test_network(model, testloader, vocab, ans_translator):
             q = q.to(device)
             a = a.to(device)
 
-            pred = model(v, q)
+            pred, attn_map = model(v, q)
             answer = torch.argmax(pred, dim=1)
 
             output = [ans_translator.label_to_ans(label) for label in answer]
