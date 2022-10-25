@@ -1,14 +1,16 @@
 import torch
 from torch import nn, optim
 import matplotlib.pyplot as plt
-import random
-import cv2
 import numpy as np
+import pytorch_grad_cam
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 from model import VQAModel
 import params
 import data_prep
 import vocab_helper
+import transforms
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -71,11 +73,11 @@ def train():
         # Initialise model, loss function, and optimiser
         print("Initialising model...")
         num_answers = len(ans_translator.answer_list)
-        model = VQAModel(feat_size=256, out_size = num_answers, num_layers = params.num_attn_layers, dropout=0.5)
+        model = VQAModel(img_feat_size=256, q_feat_size=256, out_size = num_answers, dropout=0.5)
         model = model.to(device)
         criterion = nn.CrossEntropyLoss()
-        optimiser = optim.Adam(model.parameters(), lr=params.lr)
-
+        optimiser = optim.Adam(model.parameters(), lr=1e-5)
+        
         # Start training
         for epoch in range(params.epochs):
             print(f'Epoch {epoch+1}/{params.epochs}')
@@ -92,24 +94,10 @@ def train():
                 a = a.to(device)
 
                 # Get the predictions for this batch
-                pred, attn_map = model(v, q)
-
+                pred = model(v, q)
+                
                 # Get the output answer
                 answer = torch.argmax(pred, dim=1)
-
-                # Display one example from this batch
-                if epoch % 10 == 0 and i % 10 == 0:
-                    ex = random.randint(0, params.batch_size-1)
-                    attn = attn_map[ex].view(8, 8).cpu().detach().numpy() # Reshape back to image
-                    attn = cv2.resize(attn, dsize = (256,256))
-
-                    plt.subplot(1, 2, 1)
-                    plt.imshow(np.transpose(v[ex].cpu(), axes=(1,2,0)))
-                    plt.subplot(1, 2, 2)
-                    plt.imshow(np.transpose(v[ex].cpu() * attn, axes=(1,2,0)))
-                    plt.suptitle(vocab.idx_to_sentence(q[ex]) + " / " + ans_translator.label_to_ans(a[ex]) + " / " + ans_translator.label_to_ans(answer[ex]))
-                    plt.savefig(f"attention/{epoch}_{i}_{ex}")
-                    plt.close()
 
                 # Calculate the loss
                 loss = criterion(pred, a)
@@ -152,27 +140,46 @@ def test_network(model, testloader, vocab, ans_translator):
     total_correct = 0
     total_samples = 0
 
+    # Set up GradCAM
+    #target_layer = [model.img_encoder.model.features[-1]]
+    #cam = GradCAM(model=model, target_layers = target_layer, use_cuda=torch.cuda.is_available())
+
     # Write the output somewhere?
     f = open('valid_log.txt', 'w+')
     f.write('--------------')
 
-    with torch.no_grad():
-        for data in testloader:
-            v, q, a = data
-            v = v.to(device)
-            q = q.to(device)
-            a = a.to(device)
+    #with torch.no_grad():
+    for i, data in enumerate(testloader):
+        v, q, a = data
+        v = v.to(device)
+        q = q.to(device)
+        a = a.to(device)
 
-            pred, attn_map = model(v, q)
-            answer = torch.argmax(pred, dim=1)
+        pred = model(v, q)
+        answer = torch.argmax(pred, dim=1)
+        output = [ans_translator.label_to_ans(label) for label in answer]
+        gt = [ans_translator.label_to_ans(label) for label in a]
 
-            output = [ans_translator.label_to_ans(label) for label in answer]
-            gt = [ans_translator.label_to_ans(label) for label in a]
+        flat_v = torch.flatten(v, start_dim = 1) # [batch_size, 3*256*256]
+        input = torch.cat((flat_v, q), dim = 1) # [batch_size, 3*256*256 + 16]
+        greyscale_cam = cam(input_tensor=input, targets=None)
+        heatmap = plt.imshow(greyscale_cam[0,:], cmap = 'jet')
+        heatmap = heatmap.cmap(heatmap.get_array())
+        plt.close()
+        img = transforms.inv_norm(v[0,:,:,:]) # Unnormalise the image
+        img = np.concatenate((img.cpu().numpy(), np.ones((1, 256, 256))), axis = 0) # Add A channel
+        img = np.transpose(img, axes=(1, 2, 0)) # Permute axes
 
-            for i in range(len(q)):
-                f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + gt[i] + '\n')
-            total_samples += a.size(0)
-            total_correct += (answer == a).sum().item()
+        visualisation = 0.5 * heatmap + 0.5 * img # Only get the visualisation for the first image in the batch
+        plt.imshow(visualisation)
+        plt.title(f"{vocab.idx_to_sentence(q[0])}/{gt[0]}/{output[0]}", wrap=True)
+        plt.savefig(f"attention/{i}.png")
+        plt.close()
+        
+        for i in range(len(q)):
+            f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + gt[i] + '\n')
+        total_samples += a.size(0)
+        total_correct += (answer == a).sum().item()
 
     model_accuracy = total_correct/total_samples
     print(f"Accuracy on {total_samples} images: {model_accuracy:.2f}")  
@@ -181,5 +188,10 @@ def test_network(model, testloader, vocab, ans_translator):
 
     return model_accuracy
 
+# Override the get_target_width_height method in GradCAM so that it works with these inputs 
+def _get_target_width_height(self, input_tensor: torch.Tensor):
+    return (256, 256)
+
 if __name__ == '__main__':
+    pytorch_grad_cam.base_cam.BaseCAM.get_target_width_height = _get_target_width_height
     train()

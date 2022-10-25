@@ -1,35 +1,29 @@
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 from torchvision import models
 from transformers import PreTrainedModel, AutoConfig, AutoModel
 
-import random
-import matplotlib.pyplot as plt
-import numpy as np
-from vocab_helper import Vocab
+import params
 
 class ImgEncoder(nn.Module):
     # VGG-16
     def __init__(self, out_size):
         super(ImgEncoder, self).__init__()
-        self.model = models.vgg16(pretrained=True).features # load model and pull out the part we want
-        # Load the pretrained model
-        #self.model = models.vgg16()
-        #self.model.load_state_dict(torch.load("pretraining/ss_vgg16.pth"))
-        #self.model = self.model.features # Pull out just the part we want (for SAN)
-        self.linear = nn.Linear(512, out_size) # Reshape to match q_feat size
+        self.model = models.vgg16(pretrained=True) # load model
 
-        #in_feat = self.model.classifier[6].in_features
-        #self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+        in_feat = self.model.classifier[6].in_features
+        self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+
+        # Load the pretrained state_dict
+        pretrained_dict = torch.load("pretraining/ss_vgg16.pth")
+        model_dict = self.model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        self.model.load_state_dict(model_dict)
 
     def forward(self, input):
-        out = self.model(input) #  shape [batch_size, 512, 8, 8]
-        out = out.permute(0, 2, 3, 1) # reshape to [batch_size, 8, 8, 512]
-        out = out.view(-1, 64, 512) # reshape to [batch_size, 64, 512]
-        #out = torch.tanh(self.linear(out)) # apply linear layer
-        out = self.linear(out) # apply linear layer
-
+        out = self.model(input) # we are finetuning the entire model, so no need to freeze parameters
+        # normalisation???
         return out
 
 class QEncoder(PreTrainedModel):
@@ -47,47 +41,6 @@ class QEncoder(PreTrainedModel):
         output = self.linear(output) # [batch_size, q_feat_size]
         return output
 
-class SAN(nn.Module):
-    # Stacked Attention Network
-    def __init__(self, num_layers, feat_size, hidden_size):
-        super(SAN, self).__init__()
-
-        # Create lists of layers needed for the attention network
-        list_img_layer = []
-        list_q_layer = []
-        list_attn = []
-        for i in range(num_layers):
-            list_img_layer.append(nn.Linear(feat_size, hidden_size))
-            list_q_layer.append(nn.Linear(feat_size, hidden_size))
-            list_attn.append(nn.Linear(hidden_size, 1))
-        
-        # Convert the lists into nn.ModuleLists so that Pytorch can see them
-        self.img_layer = nn.ModuleList(list_img_layer)
-        self.q_layer = nn.ModuleList(list_q_layer)
-        self.attn = nn.ModuleList(list_attn)
-
-        self.num_layers = num_layers
-        
-    def forward(self, img_vector, q_vector):
-        refined_query = q_vector
-        
-        # Repeat for the desired number of layers
-        for i in range(self.num_layers):
-            # Pass image and question vectors through layers
-            hidden_vec = torch.tanh(self.img_layer[i](img_vector) + self.q_layer[i](refined_query).unsqueeze(1)) # [batch_size, 64, hidden_size]
-
-            # Get attention distribution
-            attn_dist = F.sigmoid(self.attn[i](hidden_vec)) # [batch_size, 64, 1]
-
-            # Get the weighted image vector and aggregate
-            weighted_vec = torch.sum(attn_dist * img_vector, dim=1) # [batch_size, feat_size]
-
-            # Get the refined query vector
-            refined_query = weighted_vec + refined_query # [batch_size, feat_size]
-
-        #return refined_query
-        return weighted_vec, attn_dist
-
 class AnsGenerator(nn.Module):
     # Classification method
     def __init__(self, embed_size, pos_ans, drop=0):
@@ -95,12 +48,10 @@ class AnsGenerator(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(drop)
         self.lin1 = nn.Linear(embed_size,  pos_ans)
-        #self.gap = nn.AdaptiveAvgPool2d(output_size=1) # Global Average Pooling
         self.lin2 = nn.Linear(pos_ans, pos_ans)
     def forward(self, input):
         x = self.dropout(input)
         x = self.lin1(x)
-        #x = self.gap(x)
         x = self.relu(x)
         x = self.lin2(x)
         return x
@@ -108,24 +59,25 @@ class AnsGenerator(nn.Module):
 class VQAModel(nn.Module):
     # ImgEncoder & QEncoder -> Feature fusion -> AnsGenerator
 
-    def __init__(self, feat_size, out_size, num_layers=3, dropout=0):
+    def __init__(self, img_feat_size, q_feat_size, out_size, dropout=0):
         super(VQAModel, self).__init__()
-        self.img_encoder = ImgEncoder(feat_size)
-        # Load the pretrained model
-        #self.img_encoder.load_state_dict(torch.load("pretraining/ss_vgg16.pth"))
+        self.img_encoder = ImgEncoder(img_feat_size)
+        self.q_encoder = QEncoder(q_feat_size)
+        self.classifier = AnsGenerator(img_feat_size + q_feat_size, out_size, drop=dropout)
 
-        self.q_encoder = QEncoder(feat_size)
-        self.attention = SAN(num_layers, feat_size, 256)
-        self.classifier = AnsGenerator(feat_size, out_size, drop=dropout)
+    def forward(self, v, q = None):
+        if q is None:
+            # v and q are together and need to be reshaped. Original shape is [batch_size, 3*256*256 + 16]
+            input = v
+            batch_size = input.shape[0]
+            v = input[:, :(3*256*256)].view((batch_size, 3, 256, 256))
+            q = input[:, (3*256*256):].view((batch_size, -1)).int()
 
-    def forward(self, v, q):
-        img_feat = self.img_encoder(v) # [batch_size, 64, feat_size]
-        q_feat = self.q_encoder(q) # [batch_size, feat_size]
-        fused_feat, attn_map = self.attention(img_feat, q_feat) # [batch_size, feat_size]
+        img_feat = self.img_encoder(v) # [batch_size, img_feat_size]
+        q_feat = self.q_encoder(q) # [batch_size, q_feat_size]
+        fused_feat = torch.cat((img_feat, q_feat), dim=1) # [batch_size, img_feat_size + q_feat_size]
 
-        # Find the most likely answer
+        # Classification method
         ans = self.classifier(fused_feat)
         
-        return ans, attn_map # return attention map for attention visualisation
-
-        
+        return ans

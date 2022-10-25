@@ -11,30 +11,27 @@ from preprocess import UnlabelledImages, transform
 
 batch_size = 128
 epochs = 10
-learning_rate = 1e-4 # 0.05 * batchsize/256?
+learning_rate = 1e-4
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-class ImgEncoder(nn.Module):
-    # VGG-16
-    def __init__(self, out_size):
-        super(ImgEncoder, self).__init__()
-        self.model = models.vgg16(pretrained=True).features # load model and pull out the part we want
-        # Load the pretrained model
-        #self.model = models.vgg16()
-        #self.model.load_state_dict(torch.load("pretraining/ss_vgg16.pth"))
-        #self.model = self.model.features # Pull out just the part we want (for SAN)
-        self.linear = nn.Linear(512, out_size) # Reshape to match q_feat size
+# Self supervised pretraining model
+class SelfSupervisedModel(nn.Module):
+    def __init__(self, dim_mlp, out_size):
+        super(SelfSupervisedModel, self).__init__()
+        # Define the base model, and delete the classification layers
+        self.base_model = models.vgg16(pretrained=False) # Set to true for initial pretrain
+        del self.base_model.classifier
 
-        #in_feat = self.model.classifier[6].in_features
-        #self.model.classifier[6] = nn.Linear(in_feat, out_size) # replace the output layer to give the size we want
+        # Projection head is MLP with one hidden layer
+        self.proj_head = nn.Sequential(nn.Linear(in_features=25088, out_features=dim_mlp, bias=True), \
+                                        nn.ReLU(), \
+                                        nn.Linear(in_features=dim_mlp, out_features=out_size, bias=True))
 
     def forward(self, input):
-        out = self.model(input) #  shape [batch_size, 512, 8, 8]
-        out = out.permute(0, 2, 3, 1) # reshape to [batch_size, 8, 8, 512]
-        out = out.view(-1, 64, 512) # reshape to [batch_size, 64, 512]
-        out = self.linear(out) # apply linear layer
-
-        return out
+        features = self.base_model.features(input)
+        avg_pool = self.base_model.avgpool(features)
+        flat = torch.flatten(avg_pool, start_dim=1)
+        return self.proj_head(flat)
 
 def train():
 
@@ -48,8 +45,7 @@ def train():
     #dataset = torch.utils.data.Subset(test_data, np.arange(0, 1000)) 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True)
 
-    #model = models.vgg16(pretrained=True) # Start with a pretrained (on ImageNet) VGG-16 model
-    model = ImgEncoder(256)
+    model = SelfSupervisedModel(dim_mlp = 256, out_size = 256)
 
     if os.path.isfile("ss_vgg16.pth"):
         model.load_state_dict(torch.load("ss_vgg16.pth"))
