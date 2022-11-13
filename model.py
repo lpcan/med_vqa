@@ -68,7 +68,7 @@ class SAN(nn.Module):
             hidden_vec = torch.tanh(self.img_layer[i](img_vector) + self.q_layer[i](refined_query).unsqueeze(1)) # [batch_size, 64, hidden_size]
 
             # Get attention distribution
-            attn_dist = F.softmax(self.attn[i](hidden_vec), dim=1) # [batch_size, 64, 1]
+            attn_dist = torch.sigmoid(self.attn[i](hidden_vec))#, dim=1) # [batch_size, 64, 1]
 
             # Get the weighted image vector and aggregate
             weighted_vec = torch.sum(attn_dist * img_vector, dim=1) # [batch_size, feat_size]
@@ -76,8 +76,8 @@ class SAN(nn.Module):
             # Get the refined query vector
             refined_query = weighted_vec + refined_query # [batch_size, feat_size]
 
-        return refined_query
-        #return weighted_vec
+        #return refined_query, attn_dist
+        return weighted_vec, attn_dist
 
 class AnsGenerator(nn.Module):
     # Classification method
@@ -109,11 +109,11 @@ class VQAModel(nn.Module):
     def forward(self, v, q):
         img_feat = self.img_encoder(v) # [batch_size, 64, feat_size]
         q_feat = self.q_encoder(q) # [batch_size, feat_size]
-        fused_feat = self.attention(img_feat, q_feat) # [batch_size, feat_size]
+        fused_feat, attn = self.attention(img_feat, q_feat) # [batch_size, feat_size]
 
         # Find the most likely answer
         ans = self.classifier(fused_feat)
         
-        return ans
+        return ans, attn
 
         

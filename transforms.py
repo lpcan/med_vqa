@@ -27,3 +27,6 @@ val_transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize(mean=[0.263, 0.262, 0.262], 
                                                      std=[0.262, 0.262, 0.262]),
                                     transforms.Grayscale(num_output_channels=3)])
+
+# Unnormalise the image for viewing
+inv_norm = transforms.Normalize(mean = [-0.263/0.262, -1, -1], std = [1/0.262, 1/0.262, 1/0.262])

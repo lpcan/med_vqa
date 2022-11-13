@@ -1,11 +1,15 @@
 import torch
 from torch import nn, optim
 import matplotlib.pyplot as plt
+import random
+import cv2
+import numpy as np
 
 from model import VQAModel
 import params
 import data_prep
 import vocab_helper
+import transforms
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -72,7 +76,7 @@ def train():
         model = model.to(device)
         criterion = nn.CrossEntropyLoss()
         optimiser = optim.Adam(model.parameters(), lr=params.lr)
-
+        test_network(model, testloader, vocab, ans_translator)
         # Start training
         for epoch in range(params.epochs):
             print(f'Epoch {epoch+1}/{params.epochs}')
@@ -89,7 +93,7 @@ def train():
                 a = a.to(device)
 
                 # Get the predictions for this batch
-                pred = model(v, q)
+                pred, _ = model(v, q)
                 
                 # Get the output answer
                 answer = torch.argmax(pred, dim=1)
@@ -140,13 +144,13 @@ def test_network(model, testloader, vocab, ans_translator):
     f.write('--------------')
 
     with torch.no_grad():
-        for data in testloader:
+        for batch, data in enumerate(testloader):
             v, q, a = data
             v = v.to(device)
             q = q.to(device)
             a = a.to(device)
 
-            pred = model(v, q)
+            pred, attn = model(v, q)
             answer = torch.argmax(pred, dim=1)
 
             output = [ans_translator.label_to_ans(label) for label in answer]
@@ -154,6 +158,29 @@ def test_network(model, testloader, vocab, ans_translator):
 
             for i in range(len(q)):
                 f.write(vocab.idx_to_sentence(q[i]) + '|' + output[i] + '|' + gt[i] + '\n')
+
+            # Plot the attention distribution for two random images in this batch
+            for i in range(2):
+                num = random.randrange(len(v))
+                img = transforms.inv_norm(v[num,:,:,:])
+                img = img.cpu().numpy()
+                reshaped_attn = np.reshape(attn[num,:,:].cpu().numpy(), (8,8))
+                big_attn = cv2.resize(reshaped_attn, (256, 256))
+                #print(img)
+                attn_img = img * big_attn
+                #print(attn_img)
+                attn_img = np.concatenate((attn_img, np.ones((1, 256, 256))), axis = 0) # Add A channel
+                attn_img = np.transpose(attn_img, axes=(1, 2, 0)) # Permute axes
+                plt.subplot(1, 2, 1)
+                img = np.concatenate((img, np.ones((1, 256, 256))), axis = 0) # Add A channel
+                img = np.transpose(img, axes=(1, 2, 0)) # Permute axes
+                plt.imshow(img)
+                plt.subplot(1, 2, 2)
+                plt.imshow(attn_img)
+                plt.suptitle(f"{vocab.idx_to_sentence(q[num])}/{gt[num]}/{output[num]}", wrap=True)
+                plt.savefig(f"attention/test_{batch}_{i}")
+                plt.close()
+
             total_samples += a.size(0)
             total_correct += (answer == a).sum().item()
 
