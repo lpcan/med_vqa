@@ -109,7 +109,7 @@ def train():
 
             model_accuracy = total_correct / total_samples # implement some accuracy metric here
 
-            print(f"Total_correct: {total_correct}\nLoss: {total_loss:.2f}\nAcc: {model_accuracy:.2f}")
+            print(f"Total_correct: {total_correct}\nLoss: {total_loss:.2f}\nAcc: {model_accuracy:.4f}")
 
             if epoch % 10 == 0: # validate after every 10 epochs
                 if params.train_val_split < 1:
@@ -158,7 +158,7 @@ def test_network(model, testloader, vocab, ans_translator):
             total_correct += (answer == a).sum().item()
 
     model_accuracy = total_correct/total_samples
-    print(f"Accuracy on {total_samples} images: {model_accuracy:.2f}")  
+    print(f"Accuracy on {total_samples} images: {model_accuracy:.4f}")  
     f.close()
     model.train()
 

@@ -35,7 +35,7 @@ class Ans_Translator:
     def create_answer_dict(self, data_dirs):
         all_answers = []
         for data_dir in data_dirs:
-            f = open(glob.glob(data_dir + "All_QA_Pairs*.txt")[0], encoding='utf-8')
+            f = open(glob.glob("Datasets/2019-VQA-Med-All/All_QA_Pairs*.txt")[0], encoding='utf-8')
             
             for line in f:
                 _, _, a = line.split('|')
