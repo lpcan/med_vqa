@@ -24,7 +24,7 @@ class Vocab:
 
 class Ans_Translator:
     def __init__(self, data_dirs):
-        if data_dirs[1] == data_dirs[0]:
+        if len(data_dirs) == 1:
             # No separate train and val set
             data_dirs = [data_dirs[0]]
         # Get all unique answers
